@@ -28,7 +28,7 @@ export default async function handler(req, res) {
     }
 
     const signatureBinary = Buffer.from(
-      signature.replace(/^data:image\/\w+;base64,/, ""),
+      signature.replace(/^data:image\/\w+;base64,/, ""), // Strip "data:image/png;base64,"
       "base64"
     );
 
@@ -36,8 +36,8 @@ export default async function handler(req, res) {
       related_object: "job",
       related_object_uuid: jobUUID,
       attachment_name: `signature-${jobUUID}.png`,
-      file_type: ".png",
-      active: true
+      file_type: ".png", // Per documentation, include the file extension with a leading dot
+      active: true // Keep the attachment active
     };
 
     // Step 1: Create the Attachment Record
@@ -53,6 +53,7 @@ export default async function handler(req, res) {
       body: JSON.stringify(metadataPayload),
     });
 
+    // Extract the x-record-uuid from headers
     if (!metadataResponse.ok) {
       const metadataErrorText = await metadataResponse.text();
       console.error("Metadata creation failed:", metadataErrorText);
@@ -64,6 +65,7 @@ export default async function handler(req, res) {
 
     const attachmentUUID = metadataResponse.headers.get("x-record-uuid");
 
+    // Validate that the x-record-uuid exists
     if (!attachmentUUID) {
       const metadataResponseText = await metadataResponse.text();
       console.error("Metadata creation response missing x-record-uuid header:", metadataResponseText);
@@ -102,20 +104,6 @@ export default async function handler(req, res) {
     }
 
     console.log("File uploaded successfully!");
-
-    // Step 3: Touch the Job to force ServiceM8 UI refresh
-    console.log("Triggering job refresh...");
-    await fetch(`${SM8_BASE}/Job/${jobUUID}.json`, {
-      method: "POST",
-      headers: {
-        "X-Api-Key": SERVICEM8_API_KEY,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        edit_date: new Date().toISOString()
-      }),
-    });
 
     return res.status(200).json({
       success: true,
